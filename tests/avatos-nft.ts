@@ -61,7 +61,7 @@ describe("spl-token-minter", () => {
   it("Is initialized!", async () => {
     //// Initialize data account for the program, which is required by Solang
     const tx = await program.methods
-      .new(wallet.publicKey)
+      .new()
       .accounts({ dataAccount: dataAccount.publicKey })
       .signers([dataAccount])
       .rpc();

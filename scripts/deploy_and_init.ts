@@ -8,7 +8,7 @@ const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
 );
 
-describe("spl-token-minter", () => {
+async function main() {
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -24,7 +24,7 @@ describe("spl-token-minter", () => {
   // Metadata for the Token
   const tokenTitle = "Avatos NFT";
   const tokenSymbol = "AVATOS";
-  const collectionURI = "https://avatos.xyz/avatos.gif";
+  const collectionURI = "https://assets.avatos.xyz/metadata.json";
   const baseURI = "https://assets.avatos.xyz/magical/solana/";
 
   /// Keypairs
@@ -44,49 +44,47 @@ describe("spl-token-minter", () => {
     owner: wallet.publicKey,
   });
 
-  it("Is initialized!", async () => {
-    //// Initialize data account for the program, which is required by Solang
-    const tx = await program.methods
-      .new(wallet.publicKey)
-      .accounts({ dataAccount: dataAccount.publicKey })
-      .signers([dataAccount])
-      .rpc();
-    console.log("Your transaction constructor signature", tx);
-  });
+  //// Initialize data account for the program, which is required by Solang
+  const tx = await program.methods
+    .new()
+    .accounts({ dataAccount: dataAccount.publicKey })
+    .signers([dataAccount])
+    .rpc();
+  console.log("Your transaction constructor signature", tx);
 
-  it("Mint Collection NFT - OnlyOwner", async () => {
-    const init_tx = await program.methods
-      .initialize(
-        wallet.publicKey, // payer
-        collectionMintKeypair.publicKey, // mint
-        collectionMetadata, // metadata
-        collectionMasterEdition, // edition
-        collectionAta, // associated token account
-        collectionURI, // collection uri
-        tokenTitle, // token name
-        tokenSymbol, // token symbol
-        baseURI // base uri
-      )
-      .accounts({ dataAccount: dataAccount.publicKey })
-      .remainingAccounts([
-        { pubkey: wallet.publicKey, isWritable: true, isSigner: true },
-        {
-          pubkey: collectionMintKeypair.publicKey,
-          isWritable: true,
-          isSigner: true,
-        },
-        { pubkey: collectionMetadata, isWritable: true, isSigner: false },
-        { pubkey: collectionMasterEdition, isWritable: true, isSigner: false },
-        { pubkey: collectionAta, isWritable: true, isSigner: false },
-        { pubkey: SYSVAR_RENT_PUBKEY, isWritable: false, isSigner: false },
-        {
-          pubkey: TOKEN_METADATA_PROGRAM_ID,
-          isWritable: false,
-          isSigner: false,
-        },
-      ])
-      .signers([collectionMintKeypair])
-      .rpc();
-    console.log("Your mint collection nft transaction signature", init_tx);
-  });
-});
+  const init_tx = await program.methods
+    .initialize(
+      wallet.publicKey, // payer
+      collectionMintKeypair.publicKey, // mint
+      collectionMetadata, // metadata
+      collectionMasterEdition, // edition
+      collectionAta, // associated token account
+      collectionURI, // collection uri
+      tokenTitle, // token name
+      tokenSymbol, // token symbol
+      baseURI // base uri
+    )
+    .accounts({ dataAccount: dataAccount.publicKey })
+    .remainingAccounts([
+      { pubkey: wallet.publicKey, isWritable: true, isSigner: true },
+      {
+        pubkey: collectionMintKeypair.publicKey,
+        isWritable: true,
+        isSigner: true,
+      },
+      { pubkey: collectionMetadata, isWritable: true, isSigner: false },
+      { pubkey: collectionMasterEdition, isWritable: true, isSigner: false },
+      { pubkey: collectionAta, isWritable: true, isSigner: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isWritable: false, isSigner: false },
+      {
+        pubkey: TOKEN_METADATA_PROGRAM_ID,
+        isWritable: false,
+        isSigner: false,
+      },
+    ])
+    .signers([collectionMintKeypair])
+    .rpc();
+  console.log("Your mint collection nft transaction signature", init_tx);
+}
+
+main();
