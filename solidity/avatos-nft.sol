@@ -8,9 +8,11 @@ contract avatos_nft {
     string private _symbol;
     string private _baseURI;
     address private _collectionMint;
+    address private _beneficary;
     uint64 private _totalSupply;
+    uint64 private _mintFee;
 
-    @space(144)
+    @space(256)
     @payer(payer)
     constructor() {}
 
@@ -23,13 +25,16 @@ contract avatos_nft {
         string collectionUri, // uri for the metadata account
         string name_,
         string symbol_,
-        string baseURI_
+        string baseURI_,
+        uint64 mintFee_
     ) public {
         require(_name == "", "initialized");
 
         _name = name_;
         _symbol = symbol_;
         _baseURI = baseURI_;
+        _beneficary = payer;
+        _mintFee = mintFee_;
 
         _createCollectionToken(
             payer,
@@ -103,6 +108,12 @@ contract avatos_nft {
         address edition,  // edition account to be created
         address tokenAccount // token account PDA to be created,
     ) public {
+        SystemInstruction.transfer(
+            payer,
+            _beneficary,
+            _mintFee
+        );
+
         // Normal NFT
         // Create Mint Account
         SplToken.create_mint_account(

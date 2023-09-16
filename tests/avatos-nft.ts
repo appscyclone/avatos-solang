@@ -3,6 +3,7 @@ import { Program } from "@coral-xyz/anchor";
 import { AvatosNft } from "../target/types/avatos_nft";
 import { PublicKey, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { Metaplex, walletAdapterIdentity } from "@metaplex-foundation/js";
+import { BN } from "bn.js";
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
@@ -26,6 +27,8 @@ describe("spl-token-minter", () => {
   const tokenSymbol = "AVATOS";
   const collectionURI = "https://avatos.xyz/avatos.gif";
   const baseURI = "https://assets.avatos.xyz/";
+  const mintFee = "10000000"; // 0.01 SOL
+  const beneficary = wallet.publicKey;
 
   /// Keypairs
   const metaplex = Metaplex.make(connection);
@@ -79,7 +82,8 @@ describe("spl-token-minter", () => {
         collectionURI, // collection uri
         tokenTitle, // token name
         tokenSymbol, // token symbol
-        baseURI // base uri
+        baseURI, // base uri
+        new BN(mintFee) // mint fee
       )
       .accounts({ dataAccount: dataAccount.publicKey })
       .remainingAccounts([

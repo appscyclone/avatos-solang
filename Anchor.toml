@@ -12,7 +12,7 @@ avatos_nft = "Hp8BiDLajwASZFS33kg9urwAdnX6H9DeHgwSqyG1BnTT"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Devnet"                      # "Devnet"
+cluster = "Localnet"                    # "Devnet"
 wallet = "~/.config/solana/violet.json"
 
 [scripts]
