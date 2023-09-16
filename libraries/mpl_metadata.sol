@@ -1,38 +1,69 @@
 import 'solana';
 
+// https://github.com/metaplex-foundation/metaplex-program-library/blob/3a9c68ab8c48318f96379a136feaa9b66c322752/token-metadata/program/src/instruction.rs#L347
 // Reference: https://github.com/metaplex-foundation/metaplex-program-library/blob/master/token-metadata/program/src/instruction/metadata.rs#L449
 // Solidity does not support Rust Option<> type, so we need to handle it manually
 // Requires creating a struct for each combination of Option<> types
 // If bool for Option<> type is false, comment out the corresponding struct field otherwise instruction fails with "invalid account data"
-// TODO: figure out better way to handle Option<> types
+// https://github.com/samuelvanderwaal/wtf-is/blob/main/src/errors.rs#L49
 library MplMetadata {
 	address constant metadataProgramId = address"metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
 	address constant systemAddress = address"11111111111111111111111111111111";
     address constant rentAddress = address"SysvarRent111111111111111111111111111111111";
+    address constant tokenProgramId = address"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
-	// Reference: https://github.com/metaplex-foundation/metaplex-program-library/blob/master/token-metadata/program/src/instruction/metadata.rs#L31
-	struct CreateMetadataAccountArgsV3 {
-        DataV2 data;
+	// Reference: https://github.com/metaplex-foundation/mpl-token-metadata/blob/main/programs/token-metadata/program/src/instruction/metadata.rs#L31
+	struct CreateMetadataAccountArgsV3Collection {
+        DataV2Collection data;
         bool isMutable;
-        bool collectionDetailsPresent; // To handle Rust Option<> in Solidity
-        // CollectionDetails collectionDetails;
+        bool collectionDetailsPresent;
+        CollectionDetails collectionDetails;
+    }
+    struct CreateMetadataAccountArgsV3Normal {
+        DataV2Normal data;
+        bool isMutable;
+        bool collectionDetailsPresent;
     }
 
-	// Reference: https://github.com/metaplex-foundation/metaplex-program-library/blob/master/token-metadata/program/src/state/data.rs#L22
-    struct DataV2 {
+    // Reference: https://github.com/metaplex-foundation/mpl-token-metadata/blob/main/programs/token-metadata/program/src/instruction/edition.rs#L39C12-L39C35
+    struct CreateMasterEditionArgsCollection {
+        bool maxSupplyOption;
+        uint64 maxSupply;
+    }
+    struct CreateMasterEditionArgsNft {
+        bool maxSupplyOption;
+    }
+
+	// Reference: https://github.com/metaplex-foundation/mpl-token-metadata/blob/main/clients/rust/src/generated/types/data_v2.rs#L16
+    struct DataV2Collection {
         string name;
         string symbol;
         string uri;
         uint16 sellerFeeBasisPoints;
-        bool creatorsPresent; // To handle Rust Option<> in Solidity
-        // Creator[] creators;
-        bool collectionPresent; // To handle Rust Option<> in Solidity
-        // Collection collection;
-        bool usesPresent; // To handle Rust Option<> in Solidity
+        // https://borsh.io/
+        bool creatorsPresent;
+        uint32 size;
+        Creator creators; 
+        bool collectionPresent;
+        bool usesPresent;
+        // Uses uses;
+    }
+    struct DataV2Normal {
+        string name;
+        string symbol;
+        string uri;
+        uint16 sellerFeeBasisPoints;
+        // https://borsh.io/
+        bool creatorsPresent;
+        uint32 size;
+        Creator creators;
+        bool collectionPresent;
+        Collection collection;
+        bool usesPresent;
         // Uses uses;
     }
 
-	// Reference: https://github.com/metaplex-foundation/metaplex-program-library/blob/master/bubblegum/program/src/state/metaplex_adapter.rs#L10
+	// Reference: https://github.com/metaplex-foundation/mpl-token-metadata/blob/main/clients/rust/src/generated/types/creator.rs#L14
     struct Creator {
         address creatorAddress;
         bool verified;
@@ -45,7 +76,7 @@ library MplMetadata {
         address key;
     }
 
-	// Reference: https://github.com/metaplex-foundation/metaplex-program-library/blob/master/token-metadata/program/src/state/collection.rs#L57
+    // Reference: https://github.com/metaplex-foundation/mpl-token-metadata/blob/main/clients/rust/src/generated/types/collection_details.rs#L13
     struct CollectionDetails {
         CollectionDetailsType detailType;
         uint64 size;
@@ -68,64 +99,188 @@ library MplMetadata {
         Single
     }
 
-	function create_metadata_account(
+    function verify_collection(
+        address metadata,
+        address collection_authority,
+        address payer,
+        address collection_mint,
+        address collection_metadata,
+        address collection_edition
+    ) internal {
+        AccountMeta[6] metas = [
+            AccountMeta({pubkey: metadata, is_writable: true, is_signer: false}),
+            AccountMeta({pubkey: collection_authority, is_writable: true, is_signer: true}),
+            AccountMeta({pubkey: payer, is_writable: true, is_signer: true}),
+            AccountMeta({pubkey: collection_mint, is_writable: false, is_signer: false}),
+            AccountMeta({pubkey: collection_metadata, is_writable: false, is_signer: false}),
+            AccountMeta({pubkey: collection_edition, is_writable: false, is_signer: false})
+        ];
+
+        // https://docs.metaplex.com/programs/token-metadata/instructions#verify-a-collection-item
+        bytes1 discriminator = 18;
+
+        metadataProgramId.call{accounts: metas}(discriminator);
+    }
+
+    function create_master_edition_v3_collection(
+        address edition,
+        address mint,
+        address payer,
+        address metadata
+    ) internal {
+        CreateMasterEditionArgsCollection args = CreateMasterEditionArgsCollection({
+            maxSupplyOption: true,
+            maxSupply: 0
+        });
+        
+        AccountMeta[9] metas = [
+            AccountMeta({pubkey: edition, is_writable: true, is_signer: false}), // edition
+            AccountMeta({pubkey: mint, is_writable: true, is_signer: false}), // mint
+            AccountMeta({pubkey: payer, is_writable: false, is_signer: true}), // update authority
+            AccountMeta({pubkey: payer, is_writable: false, is_signer: true}), // mint authority
+            AccountMeta({pubkey: payer, is_writable: true, is_signer: true}), // payer
+            AccountMeta({pubkey: metadata, is_writable: true, is_signer: false}), // metadata
+            AccountMeta({pubkey: tokenProgramId, is_writable: false, is_signer: false}), // token 
+            AccountMeta({pubkey: systemAddress, is_writable: false, is_signer: false}), // system
+            AccountMeta({pubkey: rentAddress, is_writable: false, is_signer: false}) // rent
+        ];
+
+        // https://docs.metaplex.com/programs/token-metadata/instructions#create-a-master-edition-account
+        bytes1 discriminator = 17;
+        bytes instructionData = abi.encode(discriminator, args);
+
+        metadataProgramId.call{accounts: metas}(instructionData);
+    }
+
+    function create_master_edition_v3_nft(
+        address edition,
+        address mint,
+        address payer,
+        address metadata
+    ) internal {
+        CreateMasterEditionArgsNft args = CreateMasterEditionArgsNft({
+            maxSupplyOption: false
+        });
+        
+        AccountMeta[9] metas = [
+            AccountMeta({pubkey: edition, is_writable: true, is_signer: false}), // edition
+            AccountMeta({pubkey: mint, is_writable: true, is_signer: false}), // mint
+            AccountMeta({pubkey: payer, is_writable: false, is_signer: true}), // update authority
+            AccountMeta({pubkey: payer, is_writable: false, is_signer: true}), // mint authority
+            AccountMeta({pubkey: payer, is_writable: true, is_signer: true}), // payer
+            AccountMeta({pubkey: metadata, is_writable: true, is_signer: false}), // metadata
+            AccountMeta({pubkey: tokenProgramId, is_writable: false, is_signer: false}), // token 
+            AccountMeta({pubkey: systemAddress, is_writable: false, is_signer: false}), // system
+            AccountMeta({pubkey: rentAddress, is_writable: false, is_signer: false}) // rent
+        ];
+
+        // https://docs.metaplex.com/programs/token-metadata/instructions#create-a-master-edition-account
+        bytes1 discriminator = 17;
+        bytes instructionData = abi.encode(discriminator, args);
+
+        metadataProgramId.call{accounts: metas}(instructionData);
+    }
+
+    /// Collection NFT
+    //  collection = None => collectionMetadata = 0x0
+    //  collectionDetails = Some(size = 0) => for initialization
+	function create_metadata_account_collection(
 		address metadata,
 		address mint,
-		address mintAuthority,
 		address payer,
-		address updateAuthority,
 		string name,
 		string symbol,
 		string uri
-	) public {
-        // // Example of how to add a Creator[] array to the DataV2 struct
-		// Creator[] memory creators = new Creator[](1);
-        // creators[0] = Creator({
-        //     creatorAddress: payer,
-        //     verified: false,
-        //     share: 100
-        // });
-
-        DataV2 data = DataV2({
+	) internal {
+        DataV2Collection data = DataV2Collection({
             name: name,
             symbol: symbol,
             uri: uri,
-            sellerFeeBasisPoints: 0,
-            creatorsPresent: false,
-             // creators: creators,
+            sellerFeeBasisPoints: 500,
+            creatorsPresent: true,
+            size: 1,
+            creators: Creator({
+                creatorAddress: address"HKAethtPHjw4WeE7jfT1LHQZrCAuoy6gF3qeG3xLKSFL",
+                verified: true,
+                share: 100
+            }),
             collectionPresent: false,
-            // collection: Collection({
-            //     verified: false,
-            //     key: address(0)
-            // }),
             usesPresent: false
-            // uses: Uses({
-            //     useMethod: UseMethod.Burn,
-            //     remaining: 0,
-            //     total: 0
-            // })
         });
 
-        CreateMetadataAccountArgsV3 args = CreateMetadataAccountArgsV3({
+        CreateMetadataAccountArgsV3Collection args = CreateMetadataAccountArgsV3Collection({
             data: data,
             isMutable: true,
-            collectionDetailsPresent: false
-			// collectionDetails: CollectionDetails({
-            //     detailType: CollectionDetailsType.V1,
-            //     size: 0
-            // })
+            collectionDetailsPresent: true,
+            collectionDetails: CollectionDetails({
+                detailType: CollectionDetailsType.V1,
+                size: 0
+            })
         });
 
         AccountMeta[7] metas = [
             AccountMeta({pubkey: metadata, is_writable: true, is_signer: false}),
             AccountMeta({pubkey: mint, is_writable: false, is_signer: false}),
-            AccountMeta({pubkey: mintAuthority, is_writable: false, is_signer: true}),
+            AccountMeta({pubkey: payer, is_writable: false, is_signer: true}),
             AccountMeta({pubkey: payer, is_writable: true, is_signer: true}),
-            AccountMeta({pubkey: updateAuthority, is_writable: false, is_signer: false}),
+            AccountMeta({pubkey: payer, is_writable: false, is_signer: false}),
             AccountMeta({pubkey: systemAddress, is_writable: false, is_signer: false}),
             AccountMeta({pubkey: rentAddress, is_writable: false, is_signer: false})
         ];
 
+        // https://docs.metaplex.com/programs/token-metadata/instructions#create-a-metadata-account
+        bytes1 discriminator = 33;
+        bytes instructionData = abi.encode(discriminator, args);
+
+        metadataProgramId.call{accounts: metas}(instructionData);
+    }
+
+    ///  Normal NFT
+    //  collection = Some(mintAccount)
+    //  collectionDetails = None
+	function create_metadata_account_normal(
+		address metadata,
+		address mint,
+		address payer,
+        address nftMint,
+		string name,
+		string symbol,
+		string uri
+	) internal {
+        DataV2Normal data = DataV2Normal({
+            name: name,
+            symbol: symbol,
+            uri: uri,
+            sellerFeeBasisPoints: 500,
+            creatorsPresent: true,
+            size: 1,
+            creators: Creator({
+                creatorAddress: address"HKAethtPHjw4WeE7jfT1LHQZrCAuoy6gF3qeG3xLKSFL",
+                verified: true,
+                share: 100
+            }),
+            collectionPresent: true,
+            collection: Collection({ verified: false, key: nftMint}),
+            usesPresent: false
+        });
+
+        CreateMetadataAccountArgsV3Normal args = CreateMetadataAccountArgsV3Normal({
+            data: data,
+            isMutable: true,
+            collectionDetailsPresent: false
+        });
+
+        AccountMeta[7] metas = [
+            AccountMeta({pubkey: metadata, is_writable: true, is_signer: false}),
+            AccountMeta({pubkey: mint, is_writable: false, is_signer: false}),
+            AccountMeta({pubkey: payer, is_writable: false, is_signer: true}),
+            AccountMeta({pubkey: payer, is_writable: true, is_signer: true}),
+            AccountMeta({pubkey: payer, is_writable: false, is_signer: false}),
+            AccountMeta({pubkey: systemAddress, is_writable: false, is_signer: false}),
+            AccountMeta({pubkey: rentAddress, is_writable: false, is_signer: false})
+        ];
+
+        // https://docs.metaplex.com/programs/token-metadata/instructions#create-a-metadata-account
         bytes1 discriminator = 33;
         bytes instructionData = abi.encode(discriminator, args);
 

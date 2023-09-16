@@ -3,7 +3,6 @@ import './system_instruction.sol';
 
 library SplToken {
 	address constant tokenProgramId = address"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-	address constant associatedTokenProgramId = address"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 	address constant rentAddress = address"SysvarRent111111111111111111111111111111111";
 	enum TokenInstruction {
 		InitializeMint, // 0
@@ -59,28 +58,8 @@ library SplToken {
 		tokenProgramId.call{accounts: metas}(instr);
 	}
 
-	/// Initialize a new associated token account.
-	///
-	/// @param payer the public key of the payer to create the associated token account
-	/// @param tokenAccount the public key of the token account to initialize
-	/// @param mint the public key of the mint account for this new token account
-	/// @param owner the public key of the owner of this new token account
-    function create_associated_token_account(address payer, address tokenAccount, address mint, address owner) internal {
-        AccountMeta[6] metas = [
-			AccountMeta({pubkey: payer, is_writable: true, is_signer: true}),
-			AccountMeta({pubkey: tokenAccount, is_writable: true, is_signer: false}),
-			AccountMeta({pubkey: owner, is_writable: false, is_signer: false}),
-			AccountMeta({pubkey: mint, is_writable: false, is_signer: false}),
-			AccountMeta({pubkey: SystemInstruction.systemAddress, is_writable: false, is_signer: false}),
-			AccountMeta({pubkey: SplToken.tokenProgramId, is_writable: false, is_signer: false})
-		];
-
-        bytes instructionData = abi.encode((0));
-		associatedTokenProgramId.call{accounts: metas}(instructionData);
-    }
-
 	// Initialize mint instruction data
-	struct InitializeMintInstruction {
+	struct InitializeMintInstruction2 {
         uint8 instruction;
         uint8 decimals;
         address mintAuthority;
@@ -88,36 +67,12 @@ library SplToken {
         address freezeAuthority;
     }
 
-	/// Initialize a new mint account.
-	///
-	/// @param mint the public key of the mint account to initialize
-	/// @param mintAuthority the public key of the mint authority
-	/// @param freezeAuthority the public key of the freeze authority
-	/// @param decimals the decimals of the mint
-	function initialize_mint(address mint, address mintAuthority, address freezeAuthority, uint8 decimals) internal {
-    	InitializeMintInstruction instr = InitializeMintInstruction({
-            instruction: 20,
-            decimals: decimals,
-            mintAuthority: mintAuthority,
-            freezeAuthorityOption: 1,
-            freezeAuthority: freezeAuthority
-        });
-
-		AccountMeta[1] metas = [
-			AccountMeta({pubkey: mint, is_writable: true, is_signer: false})
-		];
-
-		tokenProgramId.call{accounts: metas}(instr);
-	}
-
 	/// Create and initialize a new mint account in one instruction
 	///
 	/// @param payer the public key of the account paying to create the mint account
 	/// @param mint the public key of the mint account to initialize
-	/// @param mintAuthority the public key of the mint authority
-	/// @param freezeAuthority the public key of the freeze authority
 	/// @param decimals the decimals of the mint
-	function create_mint(address payer, address mint, address mintAuthority, address freezeAuthority, uint8 decimals) internal {
+	function create_mint_account(address payer, address mint,  uint8 decimals) internal {
 		// Invoke System Program to create a new account for the mint account
         // Program owner is set to the Token program
         SystemInstruction.create_account(
@@ -128,12 +83,12 @@ library SplToken {
             SplToken.tokenProgramId // new program owner
         );
 
-		InitializeMintInstruction instr = InitializeMintInstruction({
-            instruction: 20,
+		InitializeMintInstruction2 instr = InitializeMintInstruction2({
+            instruction: uint8(TokenInstruction.InitializeMint2),
             decimals: decimals,
-            mintAuthority: mintAuthority,
+            mintAuthority: payer,
             freezeAuthorityOption: 1,
-            freezeAuthority: freezeAuthority
+            freezeAuthority: payer
         });
 
 		AccountMeta[1] metas = [

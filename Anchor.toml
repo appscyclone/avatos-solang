@@ -2,18 +2,18 @@
 seeds = false
 skip-lint = false
 
-[programs.devnet]
-avatos_nft = "GbWt4JoWpfAXEeNEkrDyinpkwz3tPB3KCUY98abFTXr4"
+# [programs.devnet]
+# avatos_nft = "2x68unHHXezB2TvqfE93CbjFsmj6E5wfgLNKrSTqs1ig"
 
 [programs.localnet]
-avatos_nft = "GbWt4JoWpfAXEeNEkrDyinpkwz3tPB3KCUY98abFTXr4"
+avatos_nft = "2x68unHHXezB2TvqfE93CbjFsmj6E5wfgLNKrSTqs1ig"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"                # "Devnet"
-wallet = "~/.config/solana/id.json"
+cluster = "Localnet"                    # "Devnet"
+wallet = "~/.config/solana/violet.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

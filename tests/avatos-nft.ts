@@ -1,13 +1,16 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { AvatosNft } from "../target/types/avatos_nft";
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
-import { Metaplex } from "@metaplex-foundation/js";
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  getOrCreateAssociatedTokenAccount,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
+import { PublicKey, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import { Metaplex, walletAdapterIdentity } from "@metaplex-foundation/js";
+
+const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
+  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+);
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 describe("spl-token-minter", () => {
   // Configure the client to use the local cluster.
@@ -16,8 +19,7 @@ describe("spl-token-minter", () => {
 
   // Generate a new keypair for the data account for the program
   const dataAccount = anchor.web3.Keypair.generate();
-  // Generate a mint keypair
-  const mintKeypair = anchor.web3.Keypair.generate();
+
   const wallet = provider.wallet as anchor.Wallet;
   const connection = provider.connection;
 
@@ -26,99 +28,129 @@ describe("spl-token-minter", () => {
   // Metadata for the Token
   const tokenTitle = "Avatos NFT";
   const tokenSymbol = "AVATOS";
-  const tokenUri = "https://avatos.xyz/avatos.gif";
+  const collectionURI = "https://avatos.xyz/avatos.gif";
+  const baseURI = "https://assets.avatos.xyz/";
+
+  /// Keypairs
+  const metaplex = Metaplex.make(connection);
+  // Collection NFT
+  const collectionMintKeypair = anchor.web3.Keypair.generate();
+  const collectionMetadata = metaplex
+    .nfts()
+    .pdas()
+    .metadata({ mint: collectionMintKeypair.publicKey });
+  const collectionMasterEdition = metaplex
+    .nfts()
+    .pdas()
+    .masterEdition({ mint: collectionMintKeypair.publicKey });
+  const collectionAta = metaplex.tokens().pdas().associatedTokenAccount({
+    mint: collectionMintKeypair.publicKey,
+    owner: wallet.publicKey,
+  });
+  // Normal NFT
+  const nftMintKeypair = anchor.web3.Keypair.generate();
+  const nftMetadata = metaplex
+    .nfts()
+    .pdas()
+    .metadata({ mint: nftMintKeypair.publicKey });
+  const nftMasterEdition = metaplex
+    .nfts()
+    .pdas()
+    .masterEdition({ mint: nftMintKeypair.publicKey });
+  const nftAta = metaplex.tokens().pdas().associatedTokenAccount({
+    mint: nftMintKeypair.publicKey, // mint
+    owner: wallet.publicKey, // owner
+  });
 
   it("Is initialized!", async () => {
-    // Initialize data account for the program, which is required by Solang
+    //// Initialize data account for the program, which is required by Solang
     const tx = await program.methods
-      .new()
+      .new(wallet.publicKey)
       .accounts({ dataAccount: dataAccount.publicKey })
       .signers([dataAccount])
       .rpc();
-    console.log("Your transaction signature", tx);
+    console.log("Your transaction constructor signature", tx);
   });
 
-  it("Create an SPL Token!", async () => {
-    // Get the metadata address for the mint
-    const metaplex = Metaplex.make(connection);
-    const metadataAddress = await metaplex
-      .nfts()
-      .pdas()
-      .metadata({ mint: mintKeypair.publicKey });
-
-    // Create the token mint
-    const tx = await program.methods
-      .createTokenMint(
+  it("Mint Collection NFT - OnlyOwner", async () => {
+    const init_tx = await program.methods
+      .initialize(
         wallet.publicKey, // payer
-        mintKeypair.publicKey, // mint
-        wallet.publicKey, // mint authority
-        wallet.publicKey, // freeze authority
-        metadataAddress, // metadata address
-        9, // decimals
+        collectionMintKeypair.publicKey, // mint
+        collectionMetadata, // metadata
+        collectionMasterEdition, // edition
+        collectionAta, // associated token account
+        collectionURI, // collection uri
         tokenTitle, // token name
         tokenSymbol, // token symbol
-        tokenUri // token uri
+        baseURI // base uri
       )
       .accounts({ dataAccount: dataAccount.publicKey })
       .remainingAccounts([
+        { pubkey: wallet.publicKey, isWritable: true, isSigner: true },
         {
-          pubkey: wallet.publicKey,
+          pubkey: collectionMintKeypair.publicKey,
           isWritable: true,
           isSigner: true,
         },
-        { pubkey: mintKeypair.publicKey, isWritable: true, isSigner: true },
+        { pubkey: collectionMetadata, isWritable: true, isSigner: false },
+        { pubkey: collectionMasterEdition, isWritable: true, isSigner: false },
+        { pubkey: collectionAta, isWritable: true, isSigner: false },
+        { pubkey: SYSVAR_RENT_PUBKEY, isWritable: false, isSigner: false },
         {
-          pubkey: new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"), // Metadata program id
+          pubkey: TOKEN_METADATA_PROGRAM_ID,
           isWritable: false,
           isSigner: false,
         },
-        { pubkey: metadataAddress, isWritable: true, isSigner: false },
-        { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
-        { pubkey: SYSVAR_RENT_PUBKEY, isWritable: false, isSigner: false },
       ])
-      .signers([mintKeypair])
-      .rpc({ skipPreflight: true });
-    console.log("Your transaction signature", tx);
+      .signers([collectionMintKeypair])
+      .rpc();
+    console.log("Your mint collection nft transaction signature", init_tx);
   });
 
-  it("Mint some tokens to your wallet!", async () => {
-    // Wallet's associated token account address for mint
-    const tokenAccount = await getOrCreateAssociatedTokenAccount(
-      connection,
-      wallet.payer, // payer
-      mintKeypair.publicKey, // mint
-      wallet.publicKey // owner
-    );
-
+  it("Mint Normal token!", async () => {
+    // Associated token account PDA
     const tx = await program.methods
-      .mintTo(
+      .mintToken(
         wallet.publicKey, // payer
-        tokenAccount.address, // associated token account address
-        mintKeypair.publicKey, // mint
-        new anchor.BN(1025000000000) // amount to mint
+        nftMintKeypair.publicKey, // mint
+        nftMetadata, // metadata
+        nftMasterEdition, // edition
+        nftAta // associated token account
       )
       .accounts({ dataAccount: dataAccount.publicKey })
       .remainingAccounts([
+        { pubkey: wallet.publicKey, isWritable: true, isSigner: true },
         {
-          pubkey: wallet.publicKey,
+          pubkey: nftMintKeypair.publicKey,
           isWritable: true,
           isSigner: true,
         },
-        { pubkey: tokenAccount.address, isWritable: true, isSigner: false },
-        { pubkey: mintKeypair.publicKey, isWritable: true, isSigner: false },
+        { pubkey: nftMetadata, isWritable: true, isSigner: false },
+        { pubkey: nftMasterEdition, isWritable: true, isSigner: false },
+        { pubkey: nftAta, isWritable: true, isSigner: false },
+        { pubkey: SYSVAR_RENT_PUBKEY, isWritable: false, isSigner: false },
         {
-          pubkey: SystemProgram.programId,
-          isWritable: false,
-          isSigner: false,
-        },
-        { pubkey: TOKEN_PROGRAM_ID, isWritable: false, isSigner: false },
-        {
-          pubkey: ASSOCIATED_TOKEN_PROGRAM_ID,
+          pubkey: TOKEN_METADATA_PROGRAM_ID,
           isWritable: false,
           isSigner: false,
         },
       ])
-      .rpc({ skipPreflight: true });
-    console.log("Your transaction signature", tx);
+      .signers([nftMintKeypair])
+      .rpc();
+    console.log("Your mint normal nft transaction signature", tx);
+  });
+
+  it("Verify NFT as collection item", async () => {
+    metaplex.use(walletAdapterIdentity(wallet));
+    const verify = await metaplex.nfts().verifyCollection(
+      {
+        mintAddress: nftMintKeypair.publicKey,
+        collectionMintAddress: collectionMintKeypair.publicKey,
+        isSizedCollection: true,
+      },
+      { commitment: "finalized" }
+    );
+    console.log("Your verify transaction signature", verify);
   });
 });
