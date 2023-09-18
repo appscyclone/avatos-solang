@@ -116,7 +116,8 @@ describe("spl-token-minter", () => {
         nftMintKeypair.publicKey, // mint
         nftMetadata, // metadata
         nftMasterEdition, // edition
-        nftAta // associated token account
+        nftAta, // associated token account
+        "https://avatos.xyz"
       )
       .accounts({ dataAccount: dataAccount.publicKey })
       .remainingAccounts([
