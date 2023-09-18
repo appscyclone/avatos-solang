@@ -106,7 +106,8 @@ contract avatos_nft {
         address mint, // mint account to be created
         address metadata, // metadata account to be created
         address edition,  // edition account to be created
-        address tokenAccount // token account PDA to be created,
+        address tokenAccount, // token account PDA to be created,
+        string tokenUri
     ) public {
         SystemInstruction.transfer(
             payer,
@@ -125,7 +126,7 @@ contract avatos_nft {
         // Create Metadata Account
         _totalSupply = _totalSupply + 1;
         string tokenName = "{} #{}".format(_name, _totalSupply);
-        string tokenUri = "{}{}".format(_baseURI, _totalSupply);
+        // string tokenUri = "{}{}".format(_baseURI, _totalSupply);
         MplMetadata.create_metadata_account_normal(
             metadata, // metadata account
             mint,  // mint account
