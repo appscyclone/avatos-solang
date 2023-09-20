@@ -2,11 +2,10 @@ import "../libraries/spl_token.sol";
 import "../libraries/spl_associated_token.sol";
 import "../libraries/mpl_metadata.sol";
 
-@program_id("Hp8BiDLajwASZFS33kg9urwAdnX6H9DeHgwSqyG1BnTT")
+@program_id("7tMttueGgB3b1kUxsNpZvCkUgGFa4iTnyRNXBfyuHzVL")
 contract avatos_nft {
     string private _name;
     string private _symbol;
-    string private _baseURI;
     address private _collectionMint;
     address private _beneficary;
     uint64 private _totalSupply;
@@ -32,7 +31,6 @@ contract avatos_nft {
 
         _name = name_;
         _symbol = symbol_;
-        _baseURI = baseURI_;
         _beneficary = payer;
         _mintFee = mintFee_;
 
@@ -126,7 +124,6 @@ contract avatos_nft {
         // Create Metadata Account
         _totalSupply = _totalSupply + 1;
         string tokenName = "{} #{}".format(_name, _totalSupply);
-        // string tokenUri = "{}{}".format(_baseURI, _totalSupply);
         MplMetadata.create_metadata_account_normal(
             metadata, // metadata account
             mint,  // mint account

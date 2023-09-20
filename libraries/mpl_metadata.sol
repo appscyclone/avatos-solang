@@ -200,7 +200,7 @@ library MplMetadata {
             creatorsPresent: true,
             size: 1,
             creators: Creator({
-                creatorAddress: address"HKAethtPHjw4WeE7jfT1LHQZrCAuoy6gF3qeG3xLKSFL",
+                creatorAddress: payer,
                 verified: true,
                 share: 100
             }),
@@ -255,7 +255,7 @@ library MplMetadata {
             creatorsPresent: true,
             size: 1,
             creators: Creator({
-                creatorAddress: address"HKAethtPHjw4WeE7jfT1LHQZrCAuoy6gF3qeG3xLKSFL",
+                creatorAddress: payer,
                 verified: true,
                 share: 100
             }),
