@@ -2,7 +2,7 @@ import "../libraries/spl_token.sol";
 import "../libraries/spl_associated_token.sol";
 import "../libraries/mpl_metadata.sol";
 
-@program_id("7tMttueGgB3b1kUxsNpZvCkUgGFa4iTnyRNXBfyuHzVL")
+@program_id("6CjY9JxNbd1o16Q53cu67TeD7xwwcGiLYSUdgDJ9jHpi")
 contract avatos_nft {
     string private _name;
     string private _symbol;

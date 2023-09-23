@@ -25,7 +25,7 @@ describe("spl-token-minter", () => {
   // Metadata for the Token
   const tokenTitle = "Avatos NFT";
   const tokenSymbol = "AVATOS";
-  const collectionURI = "https://avatos.xyz/avatos.gif";
+  const collectionURI = "https://assets.avatos.xyz/metadata.json";
   const baseURI = "https://assets.avatos.xyz/";
   const mintFee = "10000000"; // 0.01 SOL
   const beneficary = wallet.publicKey;
@@ -117,7 +117,7 @@ describe("spl-token-minter", () => {
         nftMetadata, // metadata
         nftMasterEdition, // edition
         nftAta, // associated token account
-        "https://avatos.xyz"
+        "https://assets.avatos.xyz/metadata.json"
       )
       .accounts({ dataAccount: dataAccount.publicKey })
       .remainingAccounts([
